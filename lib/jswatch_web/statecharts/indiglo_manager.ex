@@ -66,45 +66,35 @@ defmodule JswatchWeb.IndigloManager do
   end
 
   def handle_info(:start_alarm, %{st: IndigloOn} = state) do
-    Process.send_after(self(), AlarmOff_AlarmOn, 500)
-    {:noreply, %{state | count: 51, st: AlarmOff}}
+    timer = Process.send_after(self(), :alarm_off_alarm_on, 500)
+    {:noreply, %{state | count: 51, st: AlarmOff, timer1: timer}}
   end
 
-  def handle_info(Waiting_IndigloOff, %{ui_pid: pid, st: Waiting, timer1: timer} = state) do
-    if timer != nil do
-      Process.cancel_timer(timer)
-    end
-    GenServer.cast(pid, :unset_indiglo)
-    Process.send_after(self(), AlarmOff_AlarmOn, 500)
-
-    {:noreply, %{state| count: 51, timer1: nil, st: AlarmOff}}
-  end
-
-
-  def handle_info(AlarmOn_AlarmOff, %{ui_pid: pid, count: count, st: AlarmOn} = state) do
+  def handle_info(:alarm_on_alarm_off, %{ui_pid: pid, count: count, st: AlarmOn} = state) do
     if count >= 1 do
-      Process.send_after(self(), AlarmOff_AlarmOn, 500)
+      timer = Process.send_after(self(), :alarm_off_alarm_on, 500)
       GenServer.cast(pid, :unset_indiglo)
-      {:noreply, %{state | count: count - 1, st: AlarmOff}}
+      {:noreply, %{state | count: count - 1, st: AlarmOff, timer1: timer}}
     else
       GenServer.cast(pid, :unset_indiglo)
       {:noreply, %{state | count: 0, st: IndigloOff}}
     end
+  end #Modificado también para manejar el timer1
 
-  end
-  def handle_info(AlarmOff_AlarmOn, %{ui_pid: pid, count: count, st: AlarmOff} = state) do
+
+  def handle_info(:alarm_off_alarm_on, %{ui_pid: pid, count: count, st: AlarmOff} = state) do
     if count >= 1 do
-      Process.send_after(self(), AlarmOn_AlarmOff, 500)
+      timer = Process.send_after(self(), :alarm_on_alarm_off, 500)
       GenServer.cast(pid, :set_indiglo)
-      {:noreply, %{state | count: count - 1, st: AlarmOn}}
+      {:noreply, %{state | count: count - 1, st: AlarmOn, timer1: timer}}
     else
       GenServer.cast(pid, :unset_indiglo)
       {:noreply, %{state | count: 0, st: IndigloOff}}
     end
   end
 
-  def handle_info(event, state) do
-    IO.inspect(event)
+  def handle_info(_event, state) do
+    # IO.inspect({:unhandled_indiglo, event, state.st})
     {:noreply, state}
   end
 end
